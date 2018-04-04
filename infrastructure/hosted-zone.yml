@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Shufflify Hosted Zone
+
+Parameters:
+  HostName:
+    Type: String
+    Default: 'shufflify.io'
+  SESVerificationValue:
+    Type: String
+    Default: 'd0wMxO3jzNiS8388F/6ycYv0JUqQhvjydR4oVvBpJt4='
+  MX:
+    Type: String
+    Default: '10 inbound-smtp.us-east-1.amazonaws.com.'
+  AutoDiscover:
+    Type: String
+    Default: 'autodiscover.mail.us-east-1.awsapps.com.'
+  DkimVerification1:
+    Type: String
+    Default: '27hhmguesgbkqsuptofng3mclojfqrlx'
+  DkimVerification2:
+    Type: String
+    Default: 'xkvbkjyztfyq7g3w77ljujsuni4bhbra'
+  DkimVerification3:
+    Type: String
+    Default: 'dnqazuprz5xbaixu5kpblpgjvxmqir5r'
+
+Resources:
+  HostedZone:
+    Type: 'AWS::Route53::HostedZone'
+    Properties:
+      HostedZoneConfig:
+        Comment: !Sub 'Hosted zone for ${HostName}'
+      Name: !Ref HostName
+  RecordSetGroup:
+    DependsOn: HostedZone
+    Type: 'AWS::Route53::RecordSetGroup'
+    Properties:
+      HostedZoneName: !Sub '${HostName}.'
+      RecordSets:
+        - Name: !Sub '_amazonses.${HostName}.'
+          Type: TXT
+          TTL: '900'
+          ResourceRecords:
+            - !Sub '"${SESVerificationValue}"'
+        - Name: !Sub '${HostName}.'
+          Type: MX
+          TTL: '300'
+          ResourceRecords:
+            - !Ref MX
+        - Name: !Sub 'autodiscover.${HostName}.'
+          Type: CNAME
+          TTL: '300'
+          ResourceRecords:
+            - !Ref AutoDiscover
+        - Name: !Sub '${DkimVerification1}._domainkey.${HostName}.'
+          Type: CNAME
+          TTL: '300'
+          ResourceRecords:
+            - !Sub '${DkimVerification1}.dkim.amazonses.com.'
+        - Name: !Sub '${DkimVerification2}._domainkey.${HostName}.'
+          Type: CNAME
+          TTL: '300'
+          ResourceRecords:
+            - !Sub '${DkimVerification2}.dkim.amazonses.com.'
+        - Name: !Sub '${DkimVerification3}._domainkey.${HostName}.'
+          Type: CNAME
+          TTL: '300'
+          ResourceRecords:
+            - !Sub '${DkimVerification3}.dkim.amazonses.com.'
+
+Outputs:
+  HostedZone:
+    Description: 'HostedZone id'
+    Value: !Ref HostedZone
+    Export:
+      Name: ShufflifyHostedZone
+  DomainName:
+    Description: 'Shufflify top-level domain'
+    Value: !Ref HostName
+    Export:
+      Name: ShufflifyHostName
