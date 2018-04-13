@@ -7,17 +7,29 @@ Parameters:
     Default: 'shufflify.io'
 
 Resources:
-  SSLCertificate:
+  WildcardCertificate:
     Type: 'AWS::CertificateManager::Certificate'
     Properties:
       DomainName: !Sub '*.${HostName}'
       DomainValidationOptions:
         - DomainName: !Sub '*.${HostName}'
           ValidationDomain: !Ref HostName
+  SSLCertificate:
+    Type: 'AWS::CertificateManager::Certificate'
+    Properties:
+      DomainName: !Ref HostName
+      DomainValidationOptions:
+        - DomainName: !Ref HostName
+          ValidationDomain: !Ref HostName
 
 Outputs:
-  Certificate:
-    Description: 'Certificate ARN'
+  TLDCertificate:
+    Description: 'Certificate ARN for shufflify.io certificate'
     Value: !Ref SSLCertificate
     Export:
-      Name: ShufflifySSLCertificate
+      Name: ShufflifyCertificate
+  WildcardCertificate:
+    Description: 'Certificate ARN for wildcard certificate'
+    Value: !Ref WildcardCertificate
+    Export:
+      Name: ShufflifyWildcardCertificate
