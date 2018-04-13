@@ -1,0 +1,7 @@
+# Serverless directories
+.serverless
+
+# golang output binary directory
+bin
+/config/dev.json
+/config/production.json
