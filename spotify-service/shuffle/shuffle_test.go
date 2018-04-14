@@ -3,6 +3,7 @@ package shuffle
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"testing/quick"
 )
 
 func TestIndexOf(t *testing.T) {
@@ -17,6 +18,48 @@ func TestIndexOf(t *testing.T) {
 	assert.Equal(t, IndexOf(coll, "Times", 4), 5)
 	assert.Equal(t, IndexOf(coll, "", 0), 6)
 	assert.Equal(t, IndexOf(coll, "Times", 6), 5)
+}
+
+func groupedItemCount(grouped map[string][]map[string]string) int {
+	sum := 0
+
+	for _, value := range grouped {
+		sum += len(value)
+	}
+
+	return sum
+}
+
+func TestGroupBy(t *testing.T) {
+	coll := []map[string]string{
+		map[string]string{"id": "1", "fruit": "Banana"},
+		map[string]string{"id": "2", "fruit": "Apple"},
+		map[string]string{"id": "3", "fruit": "Banana"},
+		map[string]string{"id": "4", "fruit": "Orange"},
+		map[string]string{"id": "5", "fruit": "Grapes"},
+		map[string]string{"id": "6", "fruit": "Apple"},
+		map[string]string{"id": "7", "fruit": "Apple"},
+		map[string]string{"id": "8", "fruit": "Grapes"},
+		map[string]string{"id": "9", "fruit": "Orange"},
+	}
+
+	grouped := GroupBy(coll, "fruit")
+
+	assert.Equal(t, 2, len(grouped["Banana"]))
+	assert.Equal(t, 3, len(grouped["Apple"]))
+	assert.Equal(t, 2, len(grouped["Orange"]))
+	assert.Equal(t, 2, len(grouped["Grapes"]))
+}
+
+func TestGroupByProperties(t *testing.T) {
+	f := func(coll []map[string]string, key string) bool {
+		grouped := GroupBy(coll, key)
+		return len(coll) == groupedItemCount(grouped)
+	}
+
+	if err := quick.Check(f, nil); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestDistribute(t *testing.T) {
