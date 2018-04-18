@@ -4,8 +4,57 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
-	"time"
 )
+
+type Track struct {
+	artist string
+	album  string
+	track  string
+	genre  string
+}
+
+func (t Track) GroupingKey(attribute string) string {
+	switch attribute {
+	case "genre":
+		return t.genre
+	case "artist":
+		return t.artist
+	case "album":
+		return t.album
+	default:
+		return t.track
+	}
+}
+
+func genres(tracks []Item) []string {
+	res := make([]string, len(tracks))
+
+	for i, track := range tracks {
+		res[i] = track.(Track).genre
+	}
+
+	return res
+}
+
+func artists(tracks []Item) []string {
+	res := make([]string, len(tracks))
+
+	for i, track := range tracks {
+		res[i] = track.(Track).artist
+	}
+
+	return res
+}
+
+func albums(tracks []Item) []string {
+	res := make([]string, len(tracks))
+
+	for i, track := range tracks {
+		res[i] = track.(Track).album
+	}
+
+	return res
+}
 
 func TestIndexOf(t *testing.T) {
 	coll := []string{"Some", "String", "Is", "Repeated", "Some", "Times", ""}
@@ -21,18 +70,18 @@ func TestIndexOf(t *testing.T) {
 	assert.Equal(t, IndexOf(coll, "Times", 6), 5)
 }
 
-func (grouped GroupedCollection) len() int {
+func (g GroupedItems) len() int {
 	sum := 0
 
-	for _, value := range grouped {
-		sum += len(value)
+	for _, items := range g {
+		sum += len(items)
 	}
 
 	return sum
 }
 
 func TestGroupBy(t *testing.T) {
-	coll := Collection{
+	coll := []Item{
 		Track{artist: "Banana"},
 		Track{artist: "Apple"},
 		Track{artist: "Banana"},
@@ -44,8 +93,8 @@ func TestGroupBy(t *testing.T) {
 		Track{artist: "Orange"},
 	}
 
-	grouped := GroupBy(coll, func(track Track) string {
-		return track.artist
+	grouped := GroupBy(coll, func(i Item) string {
+		return i.GroupingKey("artist")
 	})
 
 	assert.Equal(t, 2, len(grouped["Banana"]))
@@ -128,28 +177,179 @@ func TestDistribute(t *testing.T) {
 	)
 }
 
-func TestDistributedShuffle(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
-
-	t.Log(DistributedShuffle(Collection{
+func playlist() []Item {
+	return []Item{
 		Track{artist: "Nirvana", genre: "Grunge", track: "Smells Like Teen Spirit", album: "Nevermind"},
 		Track{artist: "Nirvana", genre: "Grunge", track: "Come as You Are", album: "Nevermind"},
 		Track{artist: "Nirvana", genre: "Grunge", track: "Heart-Shaped Box", album: "In Utero"},
-		Track{artist: "Nirvana", genre: "Grunge", track: "Dive", album: "Incesticide"},
+		Track{artist: "Nirvana", genre: "Grunge", track: "Something in the Way", album: "Nevermind"},
 		Track{artist: "Pearl Jam", genre: "Grunge", track: "Once", album: "Ten"},
 		Track{artist: "Pearl Jam", genre: "Grunge", track: "Daughter", album: "VS"},
-		Track{artist: "Leviathan", genre: "Black_Metal", track: "Her Circle is the Noose", album: "True Traitor, True Whore"},
-		Track{artist: "Leviathan", genre: "Black_Metal", track: "The Smoke of Their Torment", album: "Scar Sighted"},
-		Track{artist: "Nile", genre: "Death_Metal", track: "Black Seeds of Vengeance", album: "Black Seeds of Vengeance"},
-		Track{artist: "Deathspell Omega", genre: "Black_Metal", track: "Hetomaisa", album: "Si Circumspice"},
-		Track{artist: "Execration", genre: "Death_Metal", track: "Eternal Recurrence", album: "Return to the Void"},
-	}, []func(Track) string{
-		func(c Track) string {
-			return c.artist
-		},
-	}))
+		Track{artist: "Leviathan", genre: "BM", track: "Dawn Vibration", album: "Scar Sighted"},
+		Track{artist: "Leviathan", genre: "BM", track: "The Smoke of Their Torment", album: "Scar Sighted"},
+		Track{artist: "Nile", genre: "DM", track: "Black Seeds of Vengeance", album: "Black Seeds of Vengeance"},
+		Track{artist: "Deathspell Omega", genre: "BM", track: "Abscission", album: "Paracletus"},
+		Track{artist: "Execration", genre: "DM", track: "Eternal Recurrence", album: "Return to the Void"},
+	}
+}
 
-	t.Error("Oops")
+func TestDistributeByArtist(t *testing.T) {
+	assert.Equal(
+		t,
+		[]string{"Nirvana", "Pearl Jam", "Nirvana", "Nirvana", "Pearl Jam", "Nirvana"},
+		artists(DistributeBy(playlist()[:6], []func(Item) string{
+			func(c Item) string {
+				return c.GroupingKey("artist")
+			},
+		})),
+	)
+}
+
+func TestDistributeByArtistAttributeAccessor(t *testing.T) {
+	assert.Equal(
+		t,
+		[]string{"Nirvana", "Pearl Jam", "Nirvana", "Nirvana", "Pearl Jam", "Nirvana"},
+		artists(DistributeBy(playlist()[:6], AttributeAccessors([]string{"artist"}))),
+	)
+}
+
+func TestDistributeByGenreArtist(t *testing.T) {
+	byGenreArtist := DistributeBy(playlist(), []func(Item) string{
+		func(c Item) string {
+			return c.GroupingKey("genre")
+		},
+		func(c Item) string {
+			return c.GroupingKey("artist")
+		},
+	})
+
+	assert.Equal(
+		t,
+		[]string{"Grunge", "BM", "Grunge", "DM", "Grunge", "BM", "Grunge", "DM", "Grunge", "BM", "Grunge"},
+		genres(byGenreArtist),
+	)
+
+	assert.Equal(
+		t,
+		[]string{
+			"Nirvana",
+			"Leviathan",
+			"Pearl Jam",
+			"Nile",
+			"Nirvana",
+			"Deathspell Omega",
+			"Nirvana",
+			"Execration",
+			"Pearl Jam",
+			"Leviathan",
+			"Nirvana",
+		},
+		artists(byGenreArtist),
+	)
+}
+
+func TestDistributeByGenreArtistAttributeAccessors(t *testing.T) {
+	byGenreArtist := DistributeBy(playlist(), AttributeAccessors([]string{"genre", "artist"}))
+
+	assert.Equal(
+		t,
+		[]string{
+			"Nirvana",
+			"Leviathan",
+			"Pearl Jam",
+			"Nile",
+			"Nirvana",
+			"Deathspell Omega",
+			"Nirvana",
+			"Execration",
+			"Pearl Jam",
+			"Leviathan",
+			"Nirvana",
+		},
+		artists(byGenreArtist),
+	)
+}
+
+func TestDistributeByGenreArtistAlbum(t *testing.T) {
+	assert.Equal(
+		t,
+		[]string{
+			"Nevermind",
+			"Scar Sighted",
+			"Ten",
+			"Black Seeds of Vengeance",
+			"In Utero",
+			"Paracletus",
+			"Nevermind",
+			"Return to the Void",
+			"VS",
+			"Scar Sighted",
+			"Nevermind",
+		},
+		albums(DistributeBy(playlist(), []func(Item) string{
+			func(c Item) string {
+				return c.GroupingKey("genre")
+			},
+			func(c Item) string {
+				return c.GroupingKey("artist")
+			},
+			func(c Item) string {
+				return c.GroupingKey("album")
+			},
+		})),
+	)
+}
+
+func TestDistributeByGenreArtistAlbumAttributeAccessor(t *testing.T) {
+	assert.Equal(
+		t,
+		[]string{
+			"Nevermind",
+			"Scar Sighted",
+			"Ten",
+			"Black Seeds of Vengeance",
+			"In Utero",
+			"Paracletus",
+			"Nevermind",
+			"Return to the Void",
+			"VS",
+			"Scar Sighted",
+			"Nevermind",
+		},
+		albums(DistributeBy(playlist(), AttributeAccessors([]string{"genre", "artist", "album"}))),
+	)
+}
+
+func TestDistributedShuffle(t *testing.T) {
+	rand.Seed(1)
+
+	playlist := []Item{
+		Track{artist: "Nirvana", genre: "Grunge", track: "Smells Like Teen Spirit", album: "Nevermind"},
+		Track{artist: "Nirvana", genre: "Grunge", track: "Come as You Are", album: "Nevermind"},
+		Track{artist: "Nirvana", genre: "Grunge", track: "Something in the Way", album: "Nevermind"},
+		Track{artist: "Nirvana", genre: "Grunge", track: "Heart-Shaped Box", album: "In Utero"},
+		Track{artist: "Nirvana", genre: "Grunge", track: "Serve the Servants", album: "In Utero"},
+		Track{artist: "Nirvana", genre: "Grunge", track: "About a Girl", album: "Bleach"},
+		Track{artist: "Leviathan", genre: "BM", track: "Dawn Vibration", album: "Scar Sighted"},
+		Track{artist: "Leviathan", genre: "BM", track: "The Smoke of Their Torment", album: "Scar Sighted"},
+		Track{artist: "Nile", genre: "DM", track: "Black Seeds of Vengeance", album: "Black Seeds of Vengeance"},
+	}
+
+	assert.Equal(
+		t,
+		[]string{
+			"Nevermind",
+			"Scar Sighted",
+			"In Utero",
+			"Nevermind",
+			"Scar Sighted",
+			"In Utero",
+			"Nevermind",
+			"Black Seeds of Vengeance",
+			"Bleach",
+		},
+		albums(ShuffleBy(playlist, AttributeAccessors([]string{"genre", "artist", "album"}))),
+	)
 }
 
 func BenchmarkDistribute(b *testing.B) {

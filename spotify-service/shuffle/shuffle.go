@@ -1,51 +1,20 @@
 package shuffle
 
 import (
-	"bytes"
+	"fmt"
 	"math/rand"
 	"sort"
 )
 
-type Track struct {
-	artist string
-	album  string
-	track  string
-	genre  string
+type Item interface {
+	GroupingKey(string) string
 }
 
-type Collection []Track
-
-type GroupedCollection map[string]Collection
+type GroupedItems map[string][]Item
 
 type Bucket struct {
 	label       string
 	occurrences int
-}
-
-func (coll Collection) String() string {
-	var buffer bytes.Buffer
-
-	for _, track := range coll {
-		buffer.WriteString("\n")
-		buffer.WriteString(track.String())
-	}
-
-	return buffer.String()
-}
-
-func (track Track) String() string {
-	var buffer bytes.Buffer
-	buffer.WriteString("{")
-	buffer.WriteString("Artist: ")
-	buffer.WriteString(track.artist)
-	buffer.WriteString(", Album: ")
-	buffer.WriteString(track.album)
-	buffer.WriteString(", Track: ")
-	buffer.WriteString(track.track)
-	buffer.WriteString(", Genre: ")
-	buffer.WriteString(track.genre)
-	buffer.WriteString("}")
-	return buffer.String()
 }
 
 type byOccurrences []Bucket
@@ -75,17 +44,17 @@ func IndexOf(haystack []string, needle string, start int) int {
 	return -1
 }
 
-func GroupBy(coll Collection, fn func(Track) string) GroupedCollection {
-	res := make(GroupedCollection)
+func GroupBy(items []Item, fn func(Item) string) GroupedItems {
+	res := make(GroupedItems)
 
-	for _, track := range coll {
-		key := fn(track)
+	for _, item := range items {
+		key := fn(item)
 
 		if res[key] == nil {
-			res[key] = make(Collection, 1)
-			res[key][0] = track
+			res[key] = make([]Item, 1)
+			res[key][0] = item
 		} else {
-			res[key] = append(res[key], track)
+			res[key] = append(res[key], item)
 		}
 	}
 
@@ -115,18 +84,7 @@ func Distribute(distribution []string, bucket Bucket) []string {
 	}
 }
 
-func shuffle(src Collection) Collection {
-	dest := make(Collection, len(src))
-	perm := rand.Perm(len(src))
-
-	for i, v := range perm {
-		dest[v] = src[i]
-	}
-
-	return dest
-}
-
-func bucketsByOccurrences(grouped GroupedCollection) []Bucket {
+func bucketsByOccurrences(grouped GroupedItems) []Bucket {
 	res := make([]Bucket, len(grouped))
 	i := 0
 
@@ -139,41 +97,75 @@ func bucketsByOccurrences(grouped GroupedCollection) []Bucket {
 	return res
 }
 
-func FlattenDistribution(distribution []string, groups map[string]Collection) Collection {
-	coll := make(Collection, len(distribution))
+// Given a distribution and items grouped by the distribution keys, returns
+// a collection of items:
+//
+// []string{"a", "b", "a", "c"}
+// GroupedItems{"a": []Item{"A item 1", "A item 2"},
+//              "b": []Item{"B item 1"}
+//              "c": []Item{"C item 1"}}
+// =>
+// []Item{"A item 1", "B item 1", "A item 2", "C item 1"}
+func ReifyDistribution(distribution []string, groups GroupedItems) []Item {
+	items := make([]Item, len(distribution))
 
 	for i, key := range distribution {
-		coll[i], groups[key] = groups[key][0], groups[key][1:]
+		items[i], groups[key] = groups[key][0], groups[key][1:]
 	}
 
-	return coll
+	return items
 }
 
-func ShuffleBy(coll Collection, fns []func(Track) string) Collection {
-	res := make([]string, len(coll))
-
+func DistributeBy(items []Item, fns []func(Item) string) []Item {
 	if len(fns) == 0 {
-		return shuffle(coll)
+		return items
 	}
 
-	distributedGrouped := make(map[string]Collection)
+	distributedGrouped := make(GroupedItems)
 	fn := fns[0]
-	grouped := GroupBy(coll, fn)
+	grouped := GroupBy(items, fn)
 	buckets := bucketsByOccurrences(grouped)
+	distribution := make([]string, len(items))
 
 	for _, bucket := range buckets {
-		distributedGrouped[bucket.label] = ShuffleBy(grouped[bucket.label], fns[1:])
-		Distribute(res, bucket)
+		distributedGrouped[bucket.label] = DistributeBy(grouped[bucket.label], fns[1:])
+		Distribute(distribution, bucket)
 	}
 
-	return FlattenDistribution(res, distributedGrouped)
+	return ReifyDistribution(distribution, distributedGrouped)
 }
 
-func StartRandomly(coll Collection) Collection {
-	index := rand.Intn(len(coll))
-	return append(coll[index:], coll[:index]...)
+func AttributeAccessors(attrs []string) []func(Item) string {
+	res := make([]func(Item) string, len(attrs))
+
+	for i, attr := range attrs {
+		res[i] = func(a string) func(Item) string {
+			return func(i Item) string {
+				return i.GroupingKey(a)
+			}
+		}(attr)
+	}
+
+	return res
 }
 
-func DistributedShuffle(coll Collection, fns []func(Track) string) Collection {
-	return StartRandomly(ShuffleBy(coll, fns))
+func shuffle(src []Item) []Item {
+	dest := make([]Item, len(src))
+	perm := rand.Perm(len(src))
+
+	for i, v := range perm {
+		dest[v] = src[i]
+	}
+
+	return dest
+}
+
+func startRandomly(items []Item) []Item {
+	index := rand.Intn(len(items))
+	fmt.Println(index)
+	return append(items[index:], items[:index]...)
+}
+
+func ShuffleBy(items []Item, fns []func(Item) string) []Item {
+	return startRandomly(DistributeBy(shuffle(items), fns))
 }
