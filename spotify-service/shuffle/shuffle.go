@@ -1,7 +1,6 @@
 package shuffle
 
 import (
-	"fmt"
 	"math/rand"
 	"sort"
 )
@@ -162,7 +161,6 @@ func shuffle(src []Item) []Item {
 
 func startRandomly(items []Item) []Item {
 	index := rand.Intn(len(items))
-	fmt.Println(index)
 	return append(items[index:], items[:index]...)
 }
 
