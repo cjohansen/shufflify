@@ -61,7 +61,7 @@ func GroupBy(items []Item, fn func(Item) string) GroupedItems {
 }
 
 func Distribute(distribution []string, bucket Bucket) []string {
-	var stepSize float64 = float64(len(distribution)) / float64(bucket.occurrences)
+	stepSize := float64(len(distribution)) / float64(bucket.occurrences)
 	index := 0
 	n := bucket.occurrences
 	remainder := stepSize
@@ -73,9 +73,9 @@ func Distribute(distribution []string, bucket Bucket) []string {
 
 		if remainder >= stepSize {
 			index = IndexOf(distribution, "", index)
-			n--
-			remainder -= stepSize
 			distribution[index] = bucket.label
+			remainder -= stepSize
+			n--
 		}
 
 		index++
@@ -148,7 +148,7 @@ func AttributeAccessors(attrs []string) []func(Item) string {
 	return res
 }
 
-func shuffle(src []Item) []Item {
+func randomize(src []Item) []Item {
 	dest := make([]Item, len(src))
 	perm := rand.Perm(len(src))
 
@@ -165,5 +165,5 @@ func startRandomly(items []Item) []Item {
 }
 
 func ShuffleBy(items []Item, fns []func(Item) string) []Item {
-	return startRandomly(DistributeBy(shuffle(items), fns))
+	return startRandomly(DistributeBy(randomize(items), fns))
 }
