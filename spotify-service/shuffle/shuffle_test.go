@@ -429,8 +429,10 @@ var benchPlaylist []Item = []Item{
 	Track{artist: "Nile", genre: "DM", track: "Khetti Satha Shemsu", album: "Black Seeds of Vengeance"},
 }
 
+var genreArtistAlbum []func(Item) string = AttributeAccessors([]string{"genre", "artist", "album"})
+
 func BenchmarkShuffleBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ShuffleBy(benchPlaylist, AttributeAccessors([]string{"genre", "artist", "album"}))
+		ShuffleBy(benchPlaylist, genreArtistAlbum)
 	}
 }
