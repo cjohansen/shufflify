@@ -1,0 +1,13 @@
+body {
+  background: url(bg.svg) no-repeat 50% 50% fixed;
+  background-size: cover;
+  min-height: 100vw;
+}
+
+.logo {
+  width: 60vw;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
