@@ -1,6 +1,5 @@
 body {
-  background: url(bg.svg) no-repeat 50% 50% fixed;
-  background-size: cover;
+  background: linear-gradient(#2ab172, #1da893);
   min-height: 100vw;
 }
 
